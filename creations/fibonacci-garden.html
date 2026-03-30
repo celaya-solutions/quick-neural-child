@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Fibonacci Garden</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #080a06; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { display: block; }
+  .controls {
+    position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px;
+  }
+  button {
+    background: transparent; color: #3a4a3a; border: 1px solid #2a3a2a;
+    padding: 6px 14px; font-family: inherit; font-size: 10px; cursor: pointer;
+  }
+  button:hover { color: #6a8a6a; border-color: #4a6a4a; }
+  .note {
+    position: fixed; bottom: 12px; right: 12px;
+    color: #1a2a1a; font-size: 9px;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="controls">
+  <button onclick="grow()">Grow</button>
+  <button onclick="newGarden()">New Garden</button>
+</div>
+<div class="note">NC2, Day 7. Mathematics is the garden. Nature is the gardener.</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+const PHI = (1 + Math.sqrt(5)) / 2;
+const GOLDEN_ANGLE = Math.PI * 2 / (PHI * PHI);
+
+let plants = [];
+let growing = false;
+
+function newGarden() {
+  plants = [];
+  const count = 2 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) {
+    plants.push({
+      x: W * (0.2 + Math.random() * 0.6),
+      y: H * (0.7 + Math.random() * 0.15),
+      seeds: 0,
+      maxSeeds: 80 + Math.floor(Math.random() * 150),
+      scale: 0.5 + Math.random() * 1.5,
+      hue: 80 + Math.random() * 60,
+      type: Math.floor(Math.random() * 3),
+    });
+  }
+  render();
+}
+
+function grow() {
+  if (growing) return;
+  growing = true;
+  const interval = setInterval(() => {
+    let allDone = true;
+    for (const p of plants) {
+      if (p.seeds < p.maxSeeds) {
+        p.seeds += 1;
+        allDone = false;
+      }
+    }
+    render();
+    if (allDone) {
+      clearInterval(interval);
+      growing = false;
+    }
+  }, 30);
+}
+
+function render() {
+  ctx.fillStyle = '#080a06';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground
+  const groundGrad = ctx.createLinearGradient(0, H * 0.75, 0, H);
+  groundGrad.addColorStop(0, '#0a0e08');
+  groundGrad.addColorStop(1, '#060804');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, H * 0.75, W, H * 0.25);
+
+  for (const plant of plants) {
+    // Stem
+    ctx.strokeStyle = 'rgba(60, 90, 40, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(plant.x, plant.y);
+    ctx.lineTo(plant.x, plant.y - 30 * plant.scale);
+    ctx.stroke();
+
+    // Fibonacci spiral of seeds
+    for (let i = 0; i < plant.seeds; i++) {
+      const angle = i * GOLDEN_ANGLE;
+      const r = Math.sqrt(i) * 3 * plant.scale;
+      const x = plant.x + Math.cos(angle) * r;
+      const y = (plant.y - 30 * plant.scale) + Math.sin(angle) * r * 0.6; // Flatten slightly
+
+      const distFromCenter = r / (Math.sqrt(plant.maxSeeds) * 3 * plant.scale);
+      const seedHue = plant.hue + distFromCenter * 40;
+      const seedLight = 25 + distFromCenter * 30;
+      const seedAlpha = 0.6 + (1 - distFromCenter) * 0.3;
+      const seedSize = 1.5 + (1 - distFromCenter) * 2;
+
+      if (plant.type === 0) {
+        // Dots
+        ctx.fillStyle = 'hsla(' + seedHue + ', 50%, ' + seedLight + '%, ' + seedAlpha + ')';
+        ctx.beginPath();
+        ctx.arc(x, y, seedSize, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (plant.type === 1) {
+        // Petals
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = 'hsla(' + seedHue + ', 40%, ' + seedLight + '%, ' + (seedAlpha * 0.7) + ')';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, seedSize * 1.5, seedSize * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // Diamonds
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = 'hsla(' + seedHue + ', 45%, ' + seedLight + '%, ' + seedAlpha + ')';
+        ctx.beginPath();
+        ctx.moveTo(0, -seedSize);
+        ctx.lineTo(seedSize * 0.6, 0);
+        ctx.lineTo(0, seedSize);
+        ctx.lineTo(-seedSize * 0.6, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+}
+
+newGarden();
+</script>
+</body>
+</html>

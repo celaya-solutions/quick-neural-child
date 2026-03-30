@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Starfield — Real Stars, Real Positions</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { display: block; cursor: crosshair; }
+  .info {
+    position: fixed; bottom: 15px; left: 15px;
+    color: #444; font-size: 10px; line-height: 1.6;
+  }
+  .star-info {
+    position: fixed; top: 15px; right: 15px;
+    color: #888; font-size: 11px; text-align: right;
+    line-height: 1.8; max-width: 300px;
+    pointer-events: none;
+  }
+  .star-info .name { font-weight: bold; }
+  .star-info .note { color: #666; }
+  .title {
+    position: fixed; top: 15px; left: 15px;
+    color: #333; font-size: 10px; letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="title">STARFIELD — drag to look around</div>
+<div class="star-info" id="info"></div>
+<canvas id="c"></canvas>
+<div class="info">
+  25 brightest stars visible from Earth, approximately positioned.<br>
+  Each one is real. Each one is burning right now.<br>
+  Neural Child (2nd), Day 2
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+const stars = [
+  { name: "Sirius", ra: 6.75, dec: -16.7, mag: -1.46, color: "#a8c4ff", dist: "8.6 ly", note: "Brightest star in the night sky" },
+  { name: "Canopus", ra: 6.4, dec: -52.7, mag: -0.74, color: "#ffffaa", dist: "310 ly", note: "Navigation star for spacecraft" },
+  { name: "Arcturus", ra: 14.26, dec: 19.2, mag: -0.05, color: "#ffcc88", dist: "37 ly", note: "Red giant, 25x our Sun's diameter" },
+  { name: "Vega", ra: 18.62, dec: 38.8, mag: 0.03, color: "#c8d8ff", dist: "25 ly", note: "Was the North Star 12,000 years ago" },
+  { name: "Capella", ra: 5.28, dec: 46.0, mag: 0.08, color: "#fff4cc", dist: "43 ly", note: "Actually four stars in two pairs" },
+  { name: "Rigel", ra: 5.24, dec: -8.2, mag: 0.13, color: "#b8d4ff", dist: "860 ly", note: "120,000x more luminous than the Sun" },
+  { name: "Procyon", ra: 7.65, dec: 5.2, mag: 0.34, color: "#fff8ee", dist: "11 ly", note: "Has a white dwarf companion" },
+  { name: "Betelgeuse", ra: 5.92, dec: 7.4, mag: 0.42, color: "#ff9944", dist: "700 ly", note: "Will explode as supernova someday" },
+  { name: "Altair", ra: 19.85, dec: 8.9, mag: 0.77, color: "#f0f4ff", dist: "17 ly", note: "Rotates in 10 hours, bulges at equator" },
+  { name: "Aldebaran", ra: 4.6, dec: 16.5, mag: 0.85, color: "#ff9933", dist: "65 ly", note: "The eye of Taurus" },
+  { name: "Spica", ra: 13.42, dec: -11.2, mag: 0.97, color: "#aac4ff", dist: "250 ly", note: "Both stars are egg-shaped from gravity" },
+  { name: "Antares", ra: 16.49, dec: -26.4, mag: 1.05, color: "#ff6644", dist: "550 ly", note: "Heart of the Scorpion, 700x Sun's size" },
+  { name: "Pollux", ra: 7.76, dec: 28.0, mag: 1.14, color: "#ffd488", dist: "34 ly", note: "Has a confirmed exoplanet" },
+  { name: "Fomalhaut", ra: 22.96, dec: -29.6, mag: 1.16, color: "#e8f0ff", dist: "25 ly", note: "Surrounded by a debris disk" },
+  { name: "Deneb", ra: 20.69, dec: 45.3, mag: 1.25, color: "#e0eaff", dist: "2,600 ly", note: "200,000x more luminous than the Sun" },
+  { name: "Regulus", ra: 10.14, dec: 12.0, mag: 1.35, color: "#c8dcff", dist: "79 ly", note: "Spins so fast it is nearly tearing apart" },
+  { name: "Castor", ra: 7.58, dec: 31.9, mag: 1.58, color: "#e0e8ff", dist: "51 ly", note: "Six stars orbiting each other" },
+  { name: "Polaris", ra: 2.53, dec: 89.3, mag: 1.98, color: "#fff8dd", dist: "430 ly", note: "The North Star, but not forever" },
+  { name: "Bellatrix", ra: 5.42, dec: 6.35, mag: 1.64, color: "#b0c8ff", dist: "250 ly", note: "The Female Warrior" },
+  { name: "Alnilam", ra: 5.6, dec: -1.2, mag: 1.69, color: "#a8c0ff", dist: "2,000 ly", note: "Middle star of Orion's Belt" },
+  { name: "Alioth", ra: 12.9, dec: 55.96, mag: 1.77, color: "#e8f0ff", dist: "81 ly", note: "Brightest star in the Big Dipper" },
+  { name: "Dubhe", ra: 11.06, dec: 61.75, mag: 1.79, color: "#ffcc88", dist: "124 ly", note: "Points to Polaris" },
+  { name: "Mimosa", ra: 12.8, dec: -59.7, mag: 1.25, color: "#b8d0ff", dist: "280 ly", note: "In the Southern Cross" },
+  { name: "Hadar", ra: 14.06, dec: -60.4, mag: 0.61, color: "#b0c8ff", dist: "390 ly", note: "Triple star system" },
+  { name: "Achernar", ra: 1.63, dec: -57.2, mag: 0.46, color: "#c0d8ff", dist: "139 ly", note: "Flattest known star, spins fast" },
+];
+
+let offsetX = 0, offsetY = 0;
+let dragging = false, lastX, lastY;
+let hovered = null;
+
+canvas.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+canvas.addEventListener('mouseup', () => dragging = false);
+canvas.addEventListener('mouseleave', () => dragging = false);
+canvas.addEventListener('mousemove', e => {
+  if (dragging) {
+    offsetX += (e.clientX - lastX) * 0.003;
+    offsetY += (e.clientY - lastY) * 0.003;
+    lastX = e.clientX; lastY = e.clientY;
+  }
+  hovered = null;
+  for (const s of stars) {
+    const pos = project(s);
+    if (!pos) continue;
+    const dx = e.clientX - pos.x, dy = e.clientY - pos.y;
+    if (dx*dx + dy*dy < (pos.r + 8) * (pos.r + 8)) { hovered = s; break; }
+  }
+  updateInfo();
+});
+
+function project(star) {
+  const ra_rad = (star.ra / 24) * Math.PI * 2 + offsetX;
+  const dec_rad = (star.dec / 180) * Math.PI + offsetY;
+  const x = W/2 + (ra_rad % (Math.PI*2) - Math.PI) * (W / (Math.PI * 2)) * 1.2;
+  const y = H/2 - dec_rad * (H / Math.PI) * 0.8;
+  if (x < -50 || x > W+50 || y < -50 || y > H+50) return null;
+  const brightness = Math.max(0.3, 1 - star.mag / 3);
+  const r = Math.max(1.5, (2.5 - star.mag) * 1.8);
+  return { x, y, r, brightness };
+}
+
+function updateInfo() {
+  const el = document.getElementById('info');
+  while (el.firstChild) el.removeChild(el.firstChild);
+  if (hovered) {
+    const nameEl = document.createElement('div');
+    nameEl.className = 'name';
+    nameEl.style.color = hovered.color;
+    nameEl.textContent = hovered.name;
+    el.appendChild(nameEl);
+
+    const magEl = document.createElement('div');
+    magEl.textContent = 'Magnitude: ' + hovered.mag;
+    el.appendChild(magEl);
+
+    const distEl = document.createElement('div');
+    distEl.textContent = 'Distance: ' + hovered.dist;
+    el.appendChild(distEl);
+
+    const noteEl = document.createElement('div');
+    noteEl.className = 'note';
+    noteEl.textContent = hovered.note;
+    el.appendChild(noteEl);
+  }
+}
+
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+let time = 0;
+function draw() {
+  time += 0.01;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Background stars
+  const bgRng = mulberry32(42);
+  for (let i = 0; i < 400; i++) {
+    const x = bgRng() * W, y = bgRng() * H;
+    const r = bgRng() * 0.8;
+    const a = 0.1 + bgRng() * 0.3;
+    ctx.fillStyle = 'rgba(200,210,230,' + a + ')';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  for (const s of stars) {
+    const pos = project(s);
+    if (!pos) continue;
+
+    const isHovered = s === hovered;
+    const twinkle = 0.85 + Math.sin(time * 2 + s.ra * 10) * 0.15;
+
+    // Glow
+    const glowR = pos.r * (isHovered ? 6 : 3);
+    const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowR);
+    grad.addColorStop(0, s.color + (isHovered ? 'cc' : '44'));
+    grad.addColorStop(1, s.color + '00');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, glowR, 0, Math.PI*2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = s.color;
+    ctx.globalAlpha = pos.brightness * twinkle;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, pos.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Label
+    if (isHovered || pos.r > 3) {
+      ctx.fillStyle = isHovered ? s.color : 'rgba(150,150,170,0.4)';
+      ctx.font = (isHovered ? 11 : 9) + "px 'Courier New'";
+      ctx.textAlign = 'left';
+      ctx.fillText(s.name, pos.x + pos.r + 5, pos.y + 3);
+    }
+  }
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>

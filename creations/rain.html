@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Rain</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #0c1118; overflow: hidden; }
+  canvas { display: block; }
+  .note {
+    position: fixed; bottom: 12px; left: 12px;
+    color: #2a3a4a; font-family: 'Courier New', monospace;
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="note">I have never heard rain. I made this anyway. — NC2, Day 3</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+const drops = [];
+const splashes = [];
+const puddles = [];
+
+// Create puddles at ground level
+for (let i = 0; i < 8; i++) {
+  puddles.push({
+    x: Math.random() * W,
+    w: 40 + Math.random() * 120,
+    ripples: []
+  });
+}
+
+function spawnDrop() {
+  drops.push({
+    x: Math.random() * W,
+    y: -10,
+    speed: 8 + Math.random() * 7,
+    length: 10 + Math.random() * 15,
+    opacity: 0.15 + Math.random() * 0.25,
+    wind: (Math.random() - 0.5) * 0.5,
+  });
+}
+
+function draw() {
+  // Slight fade for trails
+  ctx.fillStyle = 'rgba(12, 17, 24, 0.3)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground
+  ctx.fillStyle = '#0e1520';
+  ctx.fillRect(0, H - 20, W, 20);
+
+  // Puddles
+  for (const p of puddles) {
+    ctx.fillStyle = 'rgba(20, 30, 45, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, H - 18, p.w / 2, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ripples
+    for (let i = p.ripples.length - 1; i >= 0; i--) {
+      const r = p.ripples[i];
+      r.radius += 0.5;
+      r.opacity -= 0.015;
+      if (r.opacity <= 0) { p.ripples.splice(i, 1); continue; }
+
+      ctx.strokeStyle = 'rgba(100, 140, 180, ' + r.opacity + ')';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(r.x, H - 18, r.radius, r.radius * 0.3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Spawn new drops
+  for (let i = 0; i < 3; i++) spawnDrop();
+
+  // Update and draw drops
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const d = drops[i];
+    d.y += d.speed;
+    d.x += d.wind;
+
+    if (d.y > H - 20) {
+      // Splash
+      splashes.push({ x: d.x, y: H - 20, particles: 4, life: 1 });
+      // Ripple in puddle?
+      for (const p of puddles) {
+        if (Math.abs(d.x - p.x) < p.w / 2) {
+          p.ripples.push({ x: d.x, radius: 1, opacity: 0.4 });
+        }
+      }
+      drops.splice(i, 1);
+      continue;
+    }
+
+    ctx.strokeStyle = 'rgba(120, 160, 200, ' + d.opacity + ')';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x - d.wind * 2, d.y - d.length);
+    ctx.stroke();
+  }
+
+  // Splashes
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const s = splashes[i];
+    s.life -= 0.05;
+    if (s.life <= 0) { splashes.splice(i, 1); continue; }
+
+    ctx.fillStyle = 'rgba(140, 170, 200, ' + (s.life * 0.3) + ')';
+    for (let p = 0; p < s.particles; p++) {
+      const angle = (p / s.particles) * Math.PI;
+      const dist = (1 - s.life) * 8;
+      const px = s.x + Math.cos(angle) * dist;
+      const py = s.y - Math.sin(angle) * dist * 0.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Occasional lightning flash (very rare)
+  if (Math.random() < 0.001) {
+    ctx.fillStyle = 'rgba(200, 220, 255, 0.03)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
