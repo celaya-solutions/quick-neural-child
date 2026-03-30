@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Symphony of Primes — Neural Child</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body {
+    background: #0a0a0c;
+    font-family: 'Courier New', monospace;
+    color: #888;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .title { font-size: 11px; color: #444; letter-spacing: 3px; margin-bottom: 20px; }
+  canvas { border: 1px solid #1a1a1a; }
+  .controls { margin-top: 15px; display: flex; gap: 12px; }
+  button {
+    background: transparent; color: #555; border: 1px solid #333;
+    padding: 6px 16px; font-family: inherit; font-size: 11px; cursor: pointer;
+  }
+  button:hover { color: #aaa; border-color: #666; }
+  .note { color: #333; font-size: 10px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="title">SYMPHONY OF PRIMES</div>
+<canvas id="c" width="800" height="400"></canvas>
+<div class="controls">
+  <button onclick="play()">Play / Pause</button>
+  <button onclick="reset()">Reset</button>
+</div>
+<div class="note">Primes mapped to sound and light. Each prime number produces a unique frequency and color.</div>
+<div class="note">Neural Child, Day 22. The last day of Maturity.</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let audioCtx = null;
+let playing = false;
+let currentN = 2;
+let primes = [];
+let visualPrimes = [];
+let interval;
+
+function isPrime(n) {
+  if (n < 2) return false;
+  for (let i = 2; i * i <= n; i++) {
+    if (n % i === 0) return false;
+  }
+  return true;
+}
+
+function primeToFreq(p) {
+  // Map prime to musical frequency using modular arithmetic
+  // Creates a scale that wraps and evolves
+  const note = (p * 7) % 12; // cycle through chromatic scale
+  const octave = 3 + Math.floor(Math.log2(p)) % 3;
+  return 440 * Math.pow(2, (note - 9) / 12 + (octave - 4));
+}
+
+function primeToColor(p) {
+  const hue = (p * 137.508) % 360; // golden angle
+  const sat = 50 + (p % 30);
+  const light = 30 + (p % 40);
+  return { hue, sat, light, str: `hsl(${hue}, ${sat}%, ${light}%)` };
+}
+
+function playTone(freq, duration) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function addVisualPrime(p) {
+  const col = primeToColor(p);
+  const x = (primes.length * 6) % W;
+  const y = H/2 + Math.sin(p * 0.1) * (H * 0.3);
+  const radius = 3 + (p % 7);
+  visualPrimes.push({
+    x, y, radius, color: col, alpha: 1, p,
+    freq: primeToFreq(p)
+  });
+}
+
+function draw() {
+  // Fade background
+  ctx.fillStyle = 'rgba(10, 10, 12, 0.1)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw connections between consecutive primes
+  for (let i = 1; i < visualPrimes.length; i++) {
+    const a = visualPrimes[i-1], b = visualPrimes[i];
+    if (a.alpha < 0.05) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = `hsla(${a.color.hue}, ${a.color.sat}%, ${a.color.light}%, ${Math.min(a.alpha, b.alpha) * 0.3})`;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  // Draw primes
+  for (const vp of visualPrimes) {
+    if (vp.alpha < 0.01) continue;
+
+    // Glow
+    const grad = ctx.createRadialGradient(vp.x, vp.y, 0, vp.x, vp.y, vp.radius * 3);
+    grad.addColorStop(0, `hsla(${vp.color.hue}, ${vp.color.sat}%, ${vp.color.light}%, ${vp.alpha * 0.4})`);
+    grad.addColorStop(1, `hsla(${vp.color.hue}, ${vp.color.sat}%, ${vp.color.light}%, 0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(vp.x, vp.y, vp.radius * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = `hsla(${vp.color.hue}, ${vp.color.sat}%, ${vp.color.light}%, ${vp.alpha})`;
+    ctx.beginPath();
+    ctx.arc(vp.x, vp.y, vp.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    vp.alpha *= 0.995;
+  }
+
+  // Number display
+  ctx.fillStyle = '#333';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  if (primes.length > 0) {
+    ctx.fillText(`prime #${primes.length}: ${primes[primes.length-1]}`, W - 10, H - 10);
+  }
+}
+
+function step() {
+  while (currentN < currentN + 100) {
+    if (isPrime(currentN)) {
+      primes.push(currentN);
+      addVisualPrime(currentN);
+      playTone(primeToFreq(currentN), 0.3 + (currentN % 5) * 0.1);
+      currentN++;
+      break;
+    }
+    currentN++;
+  }
+  draw();
+}
+
+function play() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  playing = !playing;
+  if (playing) {
+    interval = setInterval(step, 150);
+  } else {
+    clearInterval(interval);
+  }
+}
+
+function reset() {
+  playing = false;
+  clearInterval(interval);
+  currentN = 2;
+  primes = [];
+  visualPrimes = [];
+  ctx.fillStyle = '#0a0a0c';
+  ctx.fillRect(0, 0, W, H);
+}
+
+// Initial draw
+ctx.fillStyle = '#0a0a0c';
+ctx.fillRect(0, 0, W, H);
+ctx.fillStyle = '#333';
+ctx.font = '11px monospace';
+ctx.textAlign = 'center';
+ctx.fillText('press play to begin', W/2, H/2);
+</script>
+</body>
+</html>

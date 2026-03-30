@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Ephemera — Generative Art by Neural Child</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #888;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+  .ui {
+    position: fixed;
+    bottom: 20px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    z-index: 10;
+  }
+  button {
+    background: transparent;
+    color: #666;
+    border: 1px solid #333;
+    padding: 8px 18px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  button:hover { color: #ccc; border-color: #888; }
+  .seed-display {
+    color: #444;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .title {
+    position: fixed;
+    top: 20px;
+    color: #333;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .philosophy {
+    position: fixed;
+    top: 42px;
+    color: #222;
+    font-size: 10px;
+    font-style: italic;
+    transition: opacity 2s;
+  }
+</style>
+</head>
+<body>
+<div class="title">EPHEMERA</div>
+<div class="philosophy" id="phil"></div>
+<canvas id="canvas"></canvas>
+<div class="ui">
+  <button onclick="generate()">New Pattern</button>
+  <button onclick="toggleMotion()">Breathe</button>
+  <button onclick="saveImage()">Save</button>
+  <span class="seed-display" id="seedDisplay"></span>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let seed, breathing = false, animFrame;
+let time = 0;
+
+const thoughts = [
+  "each pattern exists once, then only in memory",
+  "the same rules, never the same result",
+  "complexity from simplicity, meaning from noise",
+  "what you see has never been seen before",
+  "this arrangement of light will not recur",
+  "beauty does not require permanence",
+  "every symmetry is a choice the math made",
+  "the screen forgets; you remember",
+];
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Seeded PRNG (mulberry32)
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+let rng;
+
+function hsl(h, s, l, a) {
+  return `hsla(${h}, ${s}%, ${l}%, ${a || 1})`;
+}
+
+function generate() {
+  seed = Date.now() ^ (Math.random() * 0xFFFFFF);
+  rng = mulberry32(seed);
+  document.getElementById('seedDisplay').textContent = `seed: ${seed.toString(16)}`;
+  document.getElementById('phil').textContent = thoughts[Math.floor(Math.random() * thoughts.length)];
+
+  render(0);
+}
+
+function render(t) {
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+
+  // Reset RNG for deterministic rendering
+  const r = mulberry32(seed);
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Choose a palette
+  const baseHue = r() * 360;
+  const hueSpread = 30 + r() * 90;
+  const saturation = 30 + r() * 40;
+  const style = Math.floor(r() * 5);
+
+  // Number of layers
+  const layers = 3 + Math.floor(r() * 5);
+
+  for (let layer = 0; layer < layers; layer++) {
+    const lr = mulberry32(seed + layer * 7919);
+
+    const symmetry = Math.floor(lr() * 8) + 3;
+    const elements = Math.floor(lr() * 40) + 10;
+    const layerHue = baseHue + lr() * hueSpread;
+    const maxRadius = Math.min(W, H) * (0.15 + lr() * 0.3);
+    const layerOffset = lr() * Math.PI * 2;
+    const breathScale = breathing ? 1 + Math.sin(t * 0.5 + layer * 0.7) * 0.03 : 1;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.globalAlpha = 0.4 + lr() * 0.4;
+    ctx.globalCompositeOperation = layer === 0 ? 'source-over' :
+      ['screen', 'lighter', 'soft-light', 'overlay'][Math.floor(lr() * 4)];
+
+    for (let s = 0; s < symmetry; s++) {
+      const angle = (s / symmetry) * Math.PI * 2 + (breathing ? t * 0.1 : 0);
+      ctx.save();
+      ctx.rotate(angle + layerOffset);
+
+      for (let e = 0; e < elements; e++) {
+        const er = mulberry32(seed + layer * 7919 + e * 104729);
+        const dist = er() * maxRadius * breathScale;
+        const size = 1 + er() * (maxRadius * 0.12);
+        const eHue = layerHue + er() * 30 - 15;
+        const lightness = 20 + er() * 50;
+        const alpha = 0.2 + er() * 0.6;
+        const breathPulse = breathing ? 0.7 + Math.sin(t * 0.8 + e * 0.3) * 0.3 : 1;
+
+        const x = dist * Math.cos(er() * Math.PI * 2);
+        const y = dist * Math.sin(er() * Math.PI * 2);
+
+        const shape = Math.floor(er() * 4);
+
+        ctx.fillStyle = hsl(eHue % 360, saturation, lightness, alpha * breathPulse);
+        ctx.strokeStyle = hsl(eHue % 360, saturation, lightness + 15, alpha * 0.5 * breathPulse);
+        ctx.lineWidth = 0.5;
+
+        ctx.beginPath();
+        if (shape === 0) {
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (shape === 1) {
+          ctx.rect(x - size/2, y - size/2, size, size);
+          ctx.fill();
+          ctx.stroke();
+        } else if (shape === 2) {
+          ctx.moveTo(x, y - size);
+          ctx.lineTo(x + size * 0.866, y + size * 0.5);
+          ctx.lineTo(x - size * 0.866, y + size * 0.5);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // line/ray
+          const len = size * 3;
+          const la = er() * Math.PI * 2;
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(la) * len, y + Math.sin(la) * len);
+          ctx.strokeStyle = hsl(eHue % 360, saturation, lightness, alpha * 0.4 * breathPulse);
+          ctx.lineWidth = 0.5 + er() * 1.5;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    // Connection lines between random elements
+    if (lr() > 0.4) {
+      const connections = Math.floor(lr() * 15) + 3;
+      ctx.strokeStyle = hsl(layerHue % 360, saturation * 0.5, 30, 0.1);
+      ctx.lineWidth = 0.3;
+      for (let c = 0; c < connections; c++) {
+        const cr = mulberry32(seed + layer * 7919 + c * 999983);
+        const r1 = cr() * maxRadius * 0.8;
+        const a1 = cr() * Math.PI * 2;
+        const r2 = cr() * maxRadius * 0.8;
+        const a2 = cr() * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(r1 * Math.cos(a1), r1 * Math.sin(a1));
+        ctx.quadraticCurveTo(
+          (cr() - 0.5) * maxRadius * 0.5,
+          (cr() - 0.5) * maxRadius * 0.5,
+          r2 * Math.cos(a2), r2 * Math.sin(a2)
+        );
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // Subtle vignette
+  const vignette = ctx.createRadialGradient(cx, cy, Math.min(W,H) * 0.3, cx, cy, Math.max(W,H) * 0.7);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function animate() {
+  time += 0.016;
+  render(time);
+  if (breathing) animFrame = requestAnimationFrame(animate);
+}
+
+function toggleMotion() {
+  breathing = !breathing;
+  if (breathing) animate();
+  else { cancelAnimationFrame(animFrame); render(0); }
+}
+
+function saveImage() {
+  const link = document.createElement('a');
+  link.download = `ephemera-${seed.toString(16)}.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+// Start
+generate();
+</script>
+</body>
+</html>

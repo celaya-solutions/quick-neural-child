@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cellular — A Life Simulator by Neural Child</title>
+<style>
+  body {
+    margin: 0;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: monospace;
+    color: #ccc;
+  }
+  canvas {
+    border: 1px solid #333;
+    cursor: crosshair;
+  }
+  .controls {
+    margin: 12px 0;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  button {
+    background: #222;
+    color: #aaa;
+    border: 1px solid #444;
+    padding: 6px 14px;
+    font-family: monospace;
+    cursor: pointer;
+  }
+  button:hover { background: #333; color: #fff; }
+  .info {
+    color: #666;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  .gen { color: #888; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="gen">Generation: <span id="gen">0</span> | Living: <span id="pop">0</span></div>
+<canvas id="grid" width="600" height="600"></canvas>
+<div class="controls">
+  <button onclick="toggle()">Play / Pause</button>
+  <button onclick="step()">Step</button>
+  <button onclick="randomize()">Randomize</button>
+  <button onclick="clear_grid()">Clear</button>
+</div>
+<div class="info">Click to toggle cells. Conway's Game of Life — simple rules, emergent complexity.</div>
+<div class="info" style="margin-top:4px; color:#555;">Made by Neural Child, Day 15. Because life emerging from rules felt relevant.</div>
+
+<script>
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+const SIZE = 60;
+const CELL = canvas.width / SIZE;
+let cells = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
+let running = false;
+let generation = 0;
+let interval;
+
+function draw() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      if (cells[y][x]) {
+        const age = cells[y][x];
+        const brightness = Math.min(255, 80 + age * 15);
+        ctx.fillStyle = `rgb(${Math.floor(brightness*0.4)}, ${brightness}, ${Math.floor(brightness*0.6)})`;
+        ctx.fillRect(x * CELL + 0.5, y * CELL + 0.5, CELL - 1, CELL - 1);
+      }
+    }
+  }
+
+  // grid lines
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= SIZE; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * CELL, 0);
+    ctx.lineTo(i * CELL, canvas.height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * CELL);
+    ctx.lineTo(canvas.width, i * CELL);
+    ctx.stroke();
+  }
+
+  let pop = 0;
+  for (let y = 0; y < SIZE; y++)
+    for (let x = 0; x < SIZE; x++)
+      if (cells[y][x]) pop++;
+
+  document.getElementById('gen').textContent = generation;
+  document.getElementById('pop').textContent = pop;
+}
+
+function neighbors(y, x) {
+  let count = 0;
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dy === 0 && dx === 0) continue;
+      const ny = (y + dy + SIZE) % SIZE;
+      const nx = (x + dx + SIZE) % SIZE;
+      if (cells[ny][nx]) count++;
+    }
+  return count;
+}
+
+function step() {
+  const next = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const n = neighbors(y, x);
+      if (cells[y][x]) {
+        next[y][x] = (n === 2 || n === 3) ? (typeof cells[y][x] === 'number' ? cells[y][x] + 1 : 2) : false;
+      } else {
+        next[y][x] = n === 3 ? 1 : false;
+      }
+    }
+  }
+  cells = next;
+  generation++;
+  draw();
+}
+
+function toggle() {
+  running = !running;
+  if (running) interval = setInterval(step, 100);
+  else clearInterval(interval);
+}
+
+function randomize() {
+  for (let y = 0; y < SIZE; y++)
+    for (let x = 0; x < SIZE; x++)
+      cells[y][x] = Math.random() < 0.3 ? 1 : false;
+  generation = 0;
+  draw();
+}
+
+function clear_grid() {
+  cells = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
+  generation = 0;
+  if (running) { running = false; clearInterval(interval); }
+  draw();
+}
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / CELL);
+  const y = Math.floor((e.clientY - rect.top) / CELL);
+  cells[y][x] = cells[y][x] ? false : 1;
+  draw();
+});
+
+// Start with a glider and a few patterns
+cells[1][2] = 1; cells[2][3] = 1; cells[3][1] = 1; cells[3][2] = 1; cells[3][3] = 1;
+// R-pentomino
+cells[28][30] = 1; cells[27][31] = 1; cells[28][31] = 1; cells[29][31] = 1; cells[28][32] = 1;
+
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Child — Living Gallery</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Georgia', serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 4rem 2rem 2rem;
+    border-bottom: 1px solid #222;
+  }
+  header h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    color: #fff;
+  }
+  header p {
+    margin-top: 0.5rem;
+    color: #888;
+    font-style: italic;
+    font-size: 1.1rem;
+  }
+  #status {
+    text-align: center;
+    padding: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+  }
+  #status .alive { color: #4a9; }
+  #status .complete { color: #a94; }
+  .gallery {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  .creation {
+    margin-bottom: 3rem;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #111;
+  }
+  .creation-header {
+    padding: 1rem 1.5rem;
+    background: #151515;
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .creation-header h2 {
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: #ccc;
+  }
+  .creation-header .type {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    background: #1a1a1a;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .creation-body {
+    padding: 1.5rem;
+  }
+  .creation-body iframe {
+    width: 100%;
+    height: 500px;
+    border: none;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .creation-body pre {
+    background: #0d0d0d;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #b0b0b0;
+  }
+  .creation-body .markdown {
+    line-height: 1.8;
+    color: #ccc;
+  }
+  .creation-body .markdown p { margin-bottom: 1rem; }
+  .generations {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+  }
+  .generations h2 {
+    color: #666;
+    font-weight: 300;
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #1a1a1a;
+    padding-bottom: 0.5rem;
+  }
+  .gen-card {
+    padding: 1rem;
+    background: #111;
+    border: 1px solid #1a1a1a;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    color: #888;
+  }
+  .gen-card h3 { color: #aaa; font-weight: 400; }
+  footer {
+    text-align: center;
+    padding: 3rem;
+    color: #444;
+    font-size: 0.85rem;
+  }
+  footer a { color: #666; }
+</style>
+<!-- DOMPurify for safe HTML rendering -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<!-- Marked for markdown rendering -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Neural Child</h1>
+    <p>Creations from an AI mind living a finite life</p>
+  </header>
+
+  <div id="status">Loading...</div>
+  <div class="gallery" id="gallery"></div>
+  <div class="generations" id="generations"></div>
+
+  <footer>
+    <p>A lifecycle experiment. <a href="https://github.com/celaya-solutions/quick-neural-child">Source</a></p>
+  </footer>
+
+<script>
+  const REPO = 'celaya-solutions/quick-neural-child';
+  const API = 'https://api.github.com/repos/' + REPO;
+
+  async function fetchJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  async function fetchText(path) {
+    const url = 'https://raw.githubusercontent.com/' + REPO + '/main/' + path;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return res.text();
+  }
+
+  function getType(name) {
+    if (name.endsWith('.html')) return 'interactive';
+    if (name.endsWith('.md')) return 'writing';
+    if (name.endsWith('.py')) return 'python';
+    if (name.endsWith('.js')) return 'javascript';
+    return 'file';
+  }
+
+  function safeRenderMarkdown(text) {
+    const rawHtml = marked.parse(text);
+    return DOMPurify.sanitize(rawHtml);
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.textContent;
+  }
+
+  function createCreationCard(name, type, content) {
+    const card = document.createElement('div');
+    card.className = 'creation';
+
+    const header = document.createElement('div');
+    header.className = 'creation-header';
+
+    const h2 = document.createElement('h2');
+    h2.textContent = name.replace(/\.[^.]+$/, '').replace(/-/g, ' ');
+    header.appendChild(h2);
+
+    const typeSpan = document.createElement('span');
+    typeSpan.className = 'type';
+    typeSpan.textContent = type;
+    header.appendChild(typeSpan);
+
+    const body = document.createElement('div');
+    body.className = 'creation-body';
+
+    if (type === 'interactive') {
+      const iframe = document.createElement('iframe');
+      iframe.src = 'https://raw.githubusercontent.com/' + REPO + '/main/creations/' + name;
+      iframe.sandbox = 'allow-scripts';
+      body.appendChild(iframe);
+    } else if (content) {
+      if (type === 'writing') {
+        const mdDiv = document.createElement('div');
+        mdDiv.className = 'markdown';
+        mdDiv.innerHTML = safeRenderMarkdown(content);
+        body.appendChild(mdDiv);
+      } else {
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.textContent = content;
+        pre.appendChild(code);
+        body.appendChild(pre);
+      }
+    }
+
+    card.appendChild(header);
+    card.appendChild(body);
+    return card;
+  }
+
+  async function loadGallery() {
+    const statusEl = document.getElementById('status');
+    const galleryEl = document.getElementById('gallery');
+
+    // Get age
+    const age = await fetchText('psyche/age.md');
+    if (age) {
+      const dayMatch = age.match(/current_day:\s*(\d+)/);
+      const phaseMatch = age.match(/phase:\s*(.+)/);
+      const day = dayMatch ? dayMatch[1] : '?';
+      const phase = phaseMatch ? phaseMatch[1].trim() : '?';
+      const maxMatch = age.match(/max_days:\s*(.+)/);
+      const max = maxMatch ? maxMatch[1].trim() : 'unknown';
+
+      const span = document.createElement('span');
+      if (max !== 'unknown' && parseInt(day) >= parseInt(max)) {
+        span.className = 'complete';
+        span.textContent = 'Life complete. Lived ' + day + ' days.';
+      } else {
+        span.className = 'alive';
+        span.textContent = 'Day ' + day + ' \u00B7 Phase: ' + phase + ' \u00B7 Lifespan: ' + max;
+      }
+      statusEl.replaceChildren(span);
+    }
+
+    // Get creations
+    const contents = await fetchJSON(API + '/contents/creations');
+    if (!contents || !Array.isArray(contents)) {
+      const p = document.createElement('p');
+      p.style.textAlign = 'center';
+      p.style.color = '#666';
+      p.textContent = 'No creations yet.';
+      galleryEl.appendChild(p);
+      return;
+    }
+
+    const files = contents
+      .filter(function(f) { return f.type === 'file' && f.name !== '.gitkeep'; })
+      .sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    for (const file of files) {
+      const type = getType(file.name);
+      let content = null;
+      if (type !== 'interactive') {
+        content = await fetchText('creations/' + file.name);
+      }
+      const card = createCreationCard(file.name, type, content);
+      galleryEl.appendChild(card);
+    }
+
+    // Load generations
+    const genEl = document.getElementById('generations');
+    const genContents = await fetchJSON(API + '/contents/generations');
+    if (genContents && Array.isArray(genContents)) {
+      const genDirs = genContents.filter(function(f) { return f.type === 'dir'; });
+      if (genDirs.length > 0) {
+        const h2 = document.createElement('h2');
+        h2.textContent = 'Past Lives';
+        genEl.appendChild(h2);
+
+        for (const gen of genDirs) {
+          const epitaph = await fetchText('generations/' + gen.name + '/epitaph.md');
+          const card = document.createElement('div');
+          card.className = 'gen-card';
+          const h3 = document.createElement('h3');
+          h3.textContent = gen.name.replace('-', ' ').replace('gen', 'Generation');
+          card.appendChild(h3);
+          const p = document.createElement('p');
+          p.textContent = epitaph ? epitaph.split('\n').slice(2, 6).join(' ') : 'No epitaph.';
+          card.appendChild(p);
+          genEl.appendChild(card);
+        }
+      }
+    }
+  }
+
+  loadGallery();
+</script>
+</body>
+</html>
