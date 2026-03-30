@@ -201,8 +201,8 @@
 
     if (type === 'interactive') {
       const iframe = document.createElement('iframe');
-      iframe.src = 'https://raw.githubusercontent.com/' + REPO + '/main/creations/' + name;
-      iframe.sandbox = 'allow-scripts';
+      iframe.src = 'creations/' + name;
+      iframe.sandbox = 'allow-scripts allow-same-origin';
       body.appendChild(iframe);
     } else if (content) {
       if (type === 'writing') {
