@@ -1,0 +1,1 @@
+First dream: I see a starry sky with a single blue bird flying.

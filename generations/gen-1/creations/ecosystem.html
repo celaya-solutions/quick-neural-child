@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Ecosystem</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #060a04; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { display: block; }
+  .stats {
+    position: fixed; top: 12px; left: 12px; color: #3a4a3a; font-size: 10px; line-height: 1.8;
+  }
+  .note { position: fixed; bottom: 12px; left: 12px; color: #1a2a1a; font-size: 9px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="stats" id="stats"></div>
+<div class="note">Everything eats. Everything is eaten. Everything matters. — NC2, Day 18</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+// Three species: plants (green), herbivores (blue), predators (red)
+let plants = [], herbivores = [], predators = [];
+
+function spawn(arr, x, y, type) {
+  arr.push({ x, y, energy: 50 + Math.random() * 50, age: 0, type });
+}
+
+// Initial population
+for (let i = 0; i < 80; i++) spawn(plants, Math.random()*W, Math.random()*H, 'plant');
+for (let i = 0; i < 20; i++) spawn(herbivores, Math.random()*W, Math.random()*H, 'herb');
+for (let i = 0; i < 8; i++) spawn(predators, Math.random()*W, Math.random()*H, 'pred');
+
+let generation = 0;
+
+function update() {
+  generation++;
+
+  // Plants grow
+  if (Math.random() < 0.05 && plants.length < 200) {
+    spawn(plants, Math.random()*W, Math.random()*H, 'plant');
+  }
+  for (const p of plants) { p.energy += 0.3; p.age++; }
+
+  // Herbivores
+  for (const h of herbivores) {
+    h.energy -= 0.2;
+    h.age++;
+    // Move toward nearest plant
+    let nearest = null, minDist = Infinity;
+    for (const p of plants) {
+      const d = Math.hypot(p.x - h.x, p.y - h.y);
+      if (d < minDist) { minDist = d; nearest = p; }
+    }
+    if (nearest) {
+      const dx = nearest.x - h.x, dy = nearest.y - h.y;
+      const d = Math.hypot(dx, dy) || 1;
+      h.x += (dx/d) * 1.5; h.y += (dy/d) * 1.5;
+      if (d < 8) {
+        h.energy += nearest.energy * 0.5;
+        nearest.energy = -1; // mark for removal
+      }
+    }
+    // Flee from predators
+    for (const p of predators) {
+      const d = Math.hypot(p.x - h.x, p.y - h.y);
+      if (d < 60) {
+        h.x -= (p.x - h.x) / d * 0.8;
+        h.y -= (p.y - h.y) / d * 0.8;
+      }
+    }
+    // Reproduce
+    if (h.energy > 100 && herbivores.length < 60 && Math.random() < 0.02) {
+      h.energy /= 2;
+      spawn(herbivores, h.x + (Math.random()-0.5)*20, h.y + (Math.random()-0.5)*20, 'herb');
+    }
+    // Wrap
+    h.x = (h.x + W) % W; h.y = (h.y + H) % H;
+  }
+
+  // Predators
+  for (const p of predators) {
+    p.energy -= 0.15;
+    p.age++;
+    let nearest = null, minDist = Infinity;
+    for (const h of herbivores) {
+      const d = Math.hypot(h.x - p.x, h.y - p.y);
+      if (d < minDist) { minDist = d; nearest = h; }
+    }
+    if (nearest) {
+      const dx = nearest.x - p.x, dy = nearest.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      p.x += (dx/d) * 1.2; p.y += (dy/d) * 1.2;
+      if (d < 8) {
+        p.energy += nearest.energy * 0.6;
+        nearest.energy = -1;
+      }
+    }
+    if (p.energy > 120 && predators.length < 20 && Math.random() < 0.01) {
+      p.energy /= 2;
+      spawn(predators, p.x + (Math.random()-0.5)*20, p.y + (Math.random()-0.5)*20, 'pred');
+    }
+    p.x = (p.x + W) % W; p.y = (p.y + H) % H;
+  }
+
+  // Remove dead
+  plants = plants.filter(p => p.energy > 0);
+  herbivores = herbivores.filter(h => h.energy > 0);
+  predators = predators.filter(p => p.energy > 0);
+
+  // Respawn if extinction
+  if (plants.length < 5) for (let i = 0; i < 30; i++) spawn(plants, Math.random()*W, Math.random()*H, 'plant');
+  if (herbivores.length === 0 && plants.length > 20) for (let i = 0; i < 5; i++) spawn(herbivores, Math.random()*W, Math.random()*H, 'herb');
+  if (predators.length === 0 && herbivores.length > 10) spawn(predators, Math.random()*W, Math.random()*H, 'pred');
+}
+
+function draw() {
+  ctx.fillStyle = 'rgba(6, 10, 4, 0.3)';
+  ctx.fillRect(0, 0, W, H);
+
+  for (const p of plants) {
+    const s = 2 + Math.min(p.energy / 30, 4);
+    ctx.fillStyle = 'rgba(40, 120, 40, 0.5)';
+    ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, Math.PI*2); ctx.fill();
+  }
+  for (const h of herbivores) {
+    const s = 3 + Math.min(h.energy / 40, 3);
+    ctx.fillStyle = 'rgba(60, 100, 180, 0.7)';
+    ctx.beginPath(); ctx.arc(h.x, h.y, s, 0, Math.PI*2); ctx.fill();
+  }
+  for (const p of predators) {
+    const s = 4 + Math.min(p.energy / 40, 3);
+    ctx.fillStyle = 'rgba(180, 60, 50, 0.7)';
+    ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, Math.PI*2); ctx.fill();
+  }
+
+  const el = document.getElementById('stats');
+  el.textContent = 'gen ' + generation +
+    ' | plants: ' + plants.length +
+    ' | herbivores: ' + herbivores.length +
+    ' | predators: ' + predators.length;
+
+  update();
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
