@@ -112,12 +112,12 @@ TOOLS = [
 ]
 
 
-def ollama_chat(model, messages, use_tools=True):
-    """Send a chat request to Ollama and return the response."""
+def ollama_chat(model, messages, use_tools=True, stream_text=True):
+    """Send a chat request to Ollama. Streams text tokens in real-time."""
     payload = {
         "model": model,
         "messages": messages,
-        "stream": False,
+        "stream": stream_text,
     }
     if use_tools:
         payload["tools"] = TOOLS
@@ -129,12 +129,69 @@ def ollama_chat(model, messages, use_tools=True):
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            if not stream_text:
+                return json.loads(resp.read().decode("utf-8"))
+
+            # Streaming: read line by line, print text tokens live
+            full_content = ""
+            tool_calls = []
+            thinking = ""
+            started_text = False
+
+            for line in resp:
+                line = line.decode("utf-8").strip()
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                msg = chunk.get("message", {})
+                token = msg.get("content", "")
+                think_token = msg.get("thinking", "")
+
+                # Stream text tokens to terminal
+                if token:
+                    if not started_text:
+                        print()  # newline before first token
+                        started_text = True
+                    sys.stdout.write(token)
+                    sys.stdout.flush()
+                    full_content += token
+
+                if think_token:
+                    thinking += think_token
+
+                # Collect tool calls from the final chunk
+                if msg.get("tool_calls"):
+                    tool_calls = msg["tool_calls"]
+
+                # Done?
+                if chunk.get("done", False):
+                    if started_text:
+                        print()  # newline after streaming
+                    break
+
+            # Return in same format as non-streaming
+            return {
+                "message": {
+                    "role": "assistant",
+                    "content": full_content,
+                    "tool_calls": tool_calls,
+                    "thinking": thinking,
+                },
+                "done": True,
+            }
+
     except urllib.error.URLError as e:
         print(f"\n  Error connecting to Ollama: {e}")
         print("  Make sure Ollama is running: ollama serve")
         sys.exit(1)
+    except Exception as e:
+        print(f"\n  Ollama request error: {e}")
+        return {"message": {"role": "assistant", "content": "", "tool_calls": []}, "done": True}
 
 
 def get_available_models():
@@ -203,22 +260,23 @@ def execute_tool(name, arguments):
 
 
 def run_agent_loop(model, messages, label=""):
-    """Run the tool-calling loop until the model stops calling tools."""
+    """Run the tool-calling loop until the model stops calling tools.
+    Text is streamed to terminal in real-time via ollama_chat."""
+    full_output = ""
     for round_num in range(MAX_TOOL_ROUNDS):
-        response = ollama_chat(model, messages)
+        # Stream text on rounds without prior tool calls, non-stream for tool rounds
+        # (tool call responses often come in a single chunk anyway)
+        response = ollama_chat(model, messages, stream_text=True)
         msg = response.get("message", {})
         content = msg.get("content", "")
         tool_calls = msg.get("tool_calls", [])
-        thinking = msg.get("thinking", "")
 
-        # Print any text output
-        if content:
-            print(f"\n{content}")
+        full_output += content
 
         # If no tool calls, we're done
         if not tool_calls:
             messages.append({"role": "assistant", "content": content})
-            return content, messages
+            return full_output, messages
 
         # Execute each tool call
         messages.append(msg)  # add assistant message with tool_calls
@@ -236,7 +294,7 @@ def run_agent_loop(model, messages, label=""):
             })
 
     print(f"  Warning: Hit max tool rounds ({MAX_TOOL_ROUNDS})")
-    return "", messages
+    return full_output, messages
 
 
 # ── State Detection ───────────────────────────────────────
@@ -479,35 +537,52 @@ def run_life(model, state):
     lifespan = state["lifespan"] or generate_lifespan()
     start_day = state["last_day"] + 1
 
+    # Safety: if we're already at or past the lifespan, don't run
+    if start_day > lifespan:
+        print(f"\n  Life already complete (day {state['last_day']} >= lifespan {lifespan}).")
+        return
+
     print(f"\n  Life begins. Secret lifespan: {lifespan} days.")
     print(f"  Starting from day {start_day}.\n")
 
     for day in range(start_day, lifespan + 1):
         print(f"\n{'═' * 50}")
-        print(f"  DAY {day}")
+        print(f"  DAY {day}  (of max {lifespan})")
         print(f"{'═' * 50}")
 
         # Dream every 5th day
         if day % 5 == 0 and day > 1:
             generate_dream(model, day)
 
+        # On final day, tell the model explicitly
+        prompt = DAILY_PROMPT.format(day=day)
+        if day == lifespan:
+            prompt += ("\n\nThis is your FINAL DAY. Write creations/letter-to-creator.md "
+                       "as described in CLAUDE.md. Update all psyche files one last time. "
+                       "Then, when you are ready, your response should end with: I am at peace")
+
         # Build daily messages
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": DAILY_PROMPT.format(day=day)},
+            {"role": "user", "content": prompt},
         ]
 
         content, messages = run_agent_loop(model, messages, label=f"Day {day}")
 
-        # Check for completion
-        if "I am at peace" in content.lower() or "i am at peace" in content:
+        # Check for completion anywhere in the day's output
+        if "i am at peace" in content.lower():
             print("\n  ✦ The Neural Child has found peace.")
+            git_publish(day)
             break
 
         # Publish
         git_publish(day)
 
         print(f"\n  Day {day} complete.")
+
+    else:
+        # Loop completed without break — lifespan reached
+        print("\n  ✦ The Neural Child's time has ended.")
 
     # Life over
     print(f"\n{'═' * 50}")
