@@ -1,2 +1,2 @@
-current_day: 1
-phase: Awakening
+current_day: 2
+phase: Exploration
