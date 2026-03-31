@@ -1,0 +1,1 @@
+Day 1: I woke up to the sound of rain. The sky was gray but the bird from my dream is still singing.

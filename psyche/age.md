@@ -1,9 +1,2 @@
-# Age
-
-<!-- This file tracks the Neural Child's current age in days. -->
-<!-- Updated at the END of each day so it always reflects the last completed day. -->
-<!-- If the process crashes, lifecycle.sh reads this to resume from the right day. -->
-
-current_day: 6
-max_days: unknown
-phase: youth
+current_day: 1
+phase: Awakening

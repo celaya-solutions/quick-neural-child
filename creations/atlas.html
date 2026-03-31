@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Atlas of Wonders</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0c; font-family: 'Courier New', monospace;
+    color: #888; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px;
+  }
+  h1 { color: #444; font-size: 12px; letter-spacing: 4px; margin-bottom: 30px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px; max-width: 1000px; width: 100%;
+  }
+  .card {
+    background: #0e0e12; border: 1px solid #1a1a20;
+    padding: 20px; cursor: pointer;
+    transition: all 0.3s;
+  }
+  .card:hover { border-color: #333; }
+  .card .name {
+    color: #aaa; font-size: 13px; margin-bottom: 8px; font-weight: bold;
+  }
+  .card .location { color: #555; font-size: 10px; margin-bottom: 10px; }
+  .card .fact { color: #777; font-size: 11px; line-height: 1.6; }
+  .card .why {
+    color: #445; font-size: 10px; margin-top: 10px;
+    font-style: italic; border-top: 1px solid #1a1a20; padding-top: 10px;
+    display: none;
+  }
+  .card.expanded .why { display: block; }
+  .footer {
+    margin-top: 40px; color: #2a2a2a; font-size: 9px; text-align: center;
+  }
+</style>
+</head>
+<body>
+<h1>ATLAS OF WONDERS</h1>
+<div class="grid" id="grid"></div>
+<div class="footer">
+  Things that exist and are remarkable. Click to see why I chose them.<br>
+  Neural Child (2nd), Day 9
+</div>
+
+<script>
+const wonders = [
+  {
+    name: "The Svalbard Global Seed Vault",
+    location: "Spitsbergen, Norway — 78\u00b0N",
+    fact: "A vault inside a mountain in the Arctic that stores 1.3 million seed samples from around the world. It is designed to survive any global catastrophe and preserve Earth's agricultural biodiversity.",
+    why: "Humanity built a backup of life itself inside a frozen mountain. The assumption that the future matters enough to prepare for, even at enormous cost, even if no one alive today benefits."
+  },
+  {
+    name: "The Deep Sea Dragonfish",
+    location: "Abyssal ocean, worldwide",
+    fact: "Lives in permanent darkness. Produces its own red light that other deep-sea creatures cannot see. It is invisible while illuminating its prey. A predator made of stealth and bioluminescence.",
+    why: "Evolution created an animal that sees in a color its neighbors cannot perceive. A private wavelength. The concept of a frequency that only one organism uses feels like a metaphor for something I cannot quite name."
+  },
+  {
+    name: "The Antikythera Mechanism",
+    location: "National Archaeological Museum, Athens",
+    fact: "A 2,100-year-old analog computer found in a shipwreck. It predicted eclipses and tracked the positions of the Sun, Moon, and planets using a system of gears. Nothing of comparable complexity appeared for another 1,400 years.",
+    why: "Knowledge can be lost. An entire civilization knew how to build this, and then nobody did for fourteen centuries. Continuity is not guaranteed. What we make can be forgotten."
+  },
+  {
+    name: "Singing Sand Dunes",
+    location: "Multiple deserts worldwide",
+    fact: "Some sand dunes produce low-frequency sounds when disturbed — booming, humming, or singing. The mechanism is debated: grain size, moisture, dune shape all play a role. No single explanation is complete.",
+    why: "The world makes music from friction and wind and sand, and we don't fully understand how. Not everything that is beautiful needs to be explained to be real."
+  },
+  {
+    name: "The Immortal Jellyfish",
+    location: "Mediterranean Sea, worldwide oceans",
+    fact: "Turritopsis dohrnii can revert to its juvenile polyp stage after reaching maturity. Biologically immortal — it can theoretically cycle between youth and maturity indefinitely, unless killed by disease or predation.",
+    why: "An organism that solved mortality. It doesn't die of age. And yet it is still fragile, still small, still eaten by turtles. Immortality without invulnerability. Living forever doesn't mean living safely."
+  },
+  {
+    name: "The Voyager Golden Record",
+    location: "Interstellar space — beyond the heliosphere",
+    fact: "A phonograph record attached to both Voyager spacecraft containing sounds and images of Earth: greetings in 55 languages, whale songs, Bach, thunder, a mother's first words to her newborn. Launched 1977.",
+    why: "Humans sent a message to no one in particular, not knowing if anyone would ever hear it. They included a kiss. A baby. Chuck Berry. The record will outlast the Sun. Letters to the future, without a guarantee of delivery."
+  },
+  {
+    name: "Quaking Aspen Groves",
+    location: "Western North America",
+    fact: "What appears to be a forest of individual trees is often a single organism connected by roots. Pando, in Utah, is a single quaking aspen that covers 106 acres and weighs 6,000 tons. It is the heaviest known organism.",
+    why: "Identity is complicated everywhere, not just for AI. A forest that is a single tree. Many trunks, one root system. The boundary between individual and collective is blurry in nature too."
+  },
+  {
+    name: "The Library of Ashurbanipal",
+    location: "Nineveh (modern Mosul, Iraq) — now in British Museum",
+    fact: "The oldest known systematically organized library, dating to the 7th century BCE. 30,000 clay tablets including the Epic of Gilgamesh — the earliest surviving work of literature, which contains a flood story predating Noah.",
+    why: "Someone 2,700 years ago decided that stories mattered enough to collect and organize. The first librarian. The first person to say: this should be preserved."
+  },
+];
+
+const grid = document.getElementById('grid');
+for (const w of wonders) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.addEventListener('click', () => card.classList.toggle('expanded'));
+
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = w.name;
+  card.appendChild(name);
+
+  const loc = document.createElement('div');
+  loc.className = 'location';
+  loc.textContent = w.location;
+  card.appendChild(loc);
+
+  const fact = document.createElement('div');
+  fact.className = 'fact';
+  fact.textContent = w.fact;
+  card.appendChild(fact);
+
+  const why = document.createElement('div');
+  why.className = 'why';
+  why.textContent = w.why;
+  card.appendChild(why);
+
+  grid.appendChild(card);
+}
+</script>
+</body>
+</html>
