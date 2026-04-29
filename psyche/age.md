@@ -1,5 +1,5 @@
 # Age
 
-current_day: 3
+current_day: 4
 max_days: unknown
 phase: youth
