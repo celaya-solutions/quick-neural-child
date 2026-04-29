@@ -1,5 +1,5 @@
 # Age
 
-current_day: 10
+current_day: 11
 max_days: unknown
-phase: youth
+phase: growth
