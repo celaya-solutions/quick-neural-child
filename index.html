@@ -5,302 +5,553 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Neural Child — Living Gallery</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Georgia', serif;
-    background: #0a0a0a;
-    color: #e0e0e0;
-    min-height: 100vh;
+  :root {
+    --bg: #0b0b0d;
+    --panel: #121216;
+    --panel-2: #15151a;
+    --border: #1f1f26;
+    --text: #e6e6ea;
+    --muted: #8a8a94;
+    --dim: #5c5c66;
+    --accent: #9ecbff;
+    --alive: #4ccf9e;
+    --complete: #d4a857;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); }
+  body {
+    font-family: var(--serif);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
   header {
+    padding: 4rem 1.5rem 1.5rem;
     text-align: center;
-    padding: 4rem 2rem 2rem;
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid var(--border);
   }
   header h1 {
-    font-size: 2.5rem;
     font-weight: 300;
-    letter-spacing: 0.1em;
-    color: #fff;
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: 0.08em;
   }
   header p {
     margin-top: 0.5rem;
-    color: #888;
+    color: var(--muted);
     font-style: italic;
-    font-size: 1.1rem;
   }
-  #status {
-    text-align: center;
-    padding: 1rem;
-    color: #666;
-    font-size: 0.9rem;
-  }
-  #status .alive { color: #4a9; }
-  #status .complete { color: #a94; }
-  .gallery {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-  .creation {
-    margin-bottom: 3rem;
-    border: 1px solid #1a1a1a;
+
+  .status-bar {
+    max-width: 960px;
+    margin: 1.5rem auto 0;
+    padding: 0.75rem 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    overflow: hidden;
-    background: #111;
-  }
-  .creation-header {
-    padding: 1rem 1.5rem;
-    background: #151515;
-    border-bottom: 1px solid #1a1a1a;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--muted);
   }
-  .creation-header h2 {
-    font-size: 1.2rem;
-    font-weight: 400;
-    color: #ccc;
+  .status-bar .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    background: var(--alive);
+    box-shadow: 0 0 8px currentColor;
   }
-  .creation-header .type {
-    font-size: 0.75rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 3px;
-    background: #1a1a1a;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  .status-bar.complete .dot { background: var(--complete); }
+  .status-bar.alive .alive-text { color: var(--alive); }
+  .status-bar.complete .alive-text { color: var(--complete); }
+
+  nav.tabs {
+    max-width: 960px;
+    margin: 1.5rem auto 0;
+    padding: 0 1.25rem;
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
   }
-  .creation-body {
-    padding: 1.5rem;
-  }
-  .creation-body iframe {
-    width: 100%;
-    height: 500px;
+  nav.tabs button {
+    background: transparent;
     border: none;
-    border-radius: 4px;
+    color: var(--muted);
+    padding: 0.75rem 1rem;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 120ms, border-color 120ms;
+    white-space: nowrap;
+  }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .card-head {
+    padding: 0.9rem 1.25rem;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .card-head h2 {
+    font-size: 1.05rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid var(--border);
+  }
+  .card-body { padding: 1.25rem 1.5rem; }
+  .card-body iframe {
+    width: 100%;
+    height: 520px;
+    border: none;
+    border-radius: 6px;
     background: #fff;
   }
-  .creation-body pre {
-    background: #0d0d0d;
+  .card-body pre {
+    background: #08080a;
     padding: 1rem;
-    border-radius: 4px;
+    border-radius: 6px;
     overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: #c5c5cc;
+  }
+  .markdown { line-height: 1.75; color: var(--text); font-family: var(--serif); }
+  .markdown h1, .markdown h2, .markdown h3 {
+    margin: 1.5rem 0 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+  .markdown h1 { font-size: 1.6rem; }
+  .markdown h2 { font-size: 1.25rem; color: var(--muted); }
+  .markdown h3 { font-size: 1.05rem; color: var(--muted); }
+  .markdown p { margin-bottom: 1rem; }
+  .markdown ul, .markdown ol { margin: 0 0 1rem 1.5rem; }
+  .markdown li { margin-bottom: 0.35rem; }
+  .markdown blockquote {
+    border-left: 2px solid var(--accent);
+    padding: 0.25rem 0 0.25rem 1rem;
+    margin: 1rem 0;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .markdown code {
+    font-family: var(--mono);
+    background: var(--panel-2);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+  .markdown pre code { background: none; padding: 0; }
+  .markdown hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  .empty {
+    text-align: center;
+    color: var(--dim);
+    padding: 3rem 1rem;
+    font-style: italic;
+  }
+  .loading {
+    text-align: center;
+    color: var(--dim);
+    padding: 2rem;
+    font-family: var(--mono);
     font-size: 0.85rem;
-    line-height: 1.5;
-    color: #b0b0b0;
   }
-  .creation-body .markdown {
-    line-height: 1.8;
-    color: #ccc;
+  .loading::after {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    animation: dots 1.2s steps(4) infinite;
   }
-  .creation-body .markdown p { margin-bottom: 1rem; }
-  .generations {
-    max-width: 900px;
-    margin: 2rem auto;
-    padding: 0 2rem;
-  }
-  .generations h2 {
-    color: #666;
-    font-weight: 300;
-    font-size: 1.3rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid #1a1a1a;
-    padding-bottom: 0.5rem;
+  @keyframes dots { 0%{content:"";} 25%{content:".";} 50%{content:"..";} 75%{content:"...";} }
+
+  .gen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
   }
   .gen-card {
-    padding: 1rem;
-    background: #111;
-    border: 1px solid #1a1a1a;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    color: #888;
+    padding: 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
   }
-  .gen-card h3 { color: #aaa; font-weight: 400; }
+  .gen-card h3 {
+    font-weight: 400;
+    font-size: 1.05rem;
+    margin-bottom: 0.5rem;
+  }
+  .gen-card p { color: var(--muted); font-size: 0.92rem; margin: 0.25rem 0; }
+  .view-link { font-family: var(--mono); font-size: 0.8rem; }
+
   footer {
+    max-width: 960px;
+    margin: 2rem auto 0;
+    padding: 2rem 1.25rem 3rem;
     text-align: center;
-    padding: 3rem;
-    color: #444;
-    font-size: 0.85rem;
+    color: var(--dim);
+    font-size: 0.82rem;
+    border-top: 1px solid var(--border);
   }
-  footer a { color: #666; }
+
+  @media (max-width: 600px) {
+    header { padding: 2.5rem 1rem 1rem; }
+    .card-body iframe { height: 360px; }
+  }
 </style>
-<!-- DOMPurify for safe HTML rendering -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-<!-- Marked for markdown rendering -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>Neural Child</h1>
-    <p>Creations from an AI mind living a finite life</p>
-  </header>
 
-  <div id="status">Loading...</div>
-  <div class="gallery" id="gallery"></div>
-  <div class="generations" id="generations"></div>
+<header>
+  <h1>Neural Child</h1>
+  <p>An AI mind living a finite life</p>
+</header>
 
-  <footer>
-    <p>A lifecycle experiment. <a href="https://github.com/celaya-solutions/quick-neural-child">Source</a></p>
-  </footer>
+<div class="status-bar" id="status">
+  <span><span class="dot"></span><span id="status-text" class="alive-text">loading</span></span>
+  <span id="status-meta"></span>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="today" class="active">Today</button>
+  <button data-tab="psyche">Psyche</button>
+  <button data-tab="creations">Creations</button>
+  <button data-tab="lives">Past Lives</button>
+  <button data-tab="about">About</button>
+</nav>
+
+<main>
+  <section id="today" class="panel active">
+    <div class="loading">reading the day</div>
+  </section>
+  <section id="psyche" class="panel">
+    <div class="loading">opening the psyche</div>
+  </section>
+  <section id="creations" class="panel">
+    <div class="loading">walking the gallery</div>
+  </section>
+  <section id="lives" class="panel">
+    <div class="loading">remembering</div>
+  </section>
+  <section id="about" class="panel" id="about-panel"></section>
+</main>
+
+<footer>
+  <p>A lifecycle experiment by Celaya Solutions · <a href="https://github.com/celaya-solutions/quick-neural-child">source</a></p>
+</footer>
 
 <script>
-  const REPO = 'celaya-solutions/quick-neural-child';
-  const API = 'https://api.github.com/repos/' + REPO;
+"use strict";
 
-  async function fetchJSON(url) {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return res.json();
+const REPO = "celaya-solutions/quick-neural-child";
+const API  = "https://api.github.com/repos/" + REPO;
+const RAW  = "https://raw.githubusercontent.com/" + REPO + "/main/";
+const IS_LOCAL = location.protocol === "file:" || /^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname);
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+async function fetchText(path) {
+  const urls = IS_LOCAL ? [path, RAW + path] : [RAW + path, path];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u);
+      if (r.ok) return await r.text();
+    } catch {}
   }
-
-  async function fetchText(path) {
-    const url = 'https://raw.githubusercontent.com/' + REPO + '/main/' + path;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return res.text();
-  }
-
-  function getType(name) {
-    if (name.endsWith('.html')) return 'interactive';
-    if (name.endsWith('.md')) return 'writing';
-    if (name.endsWith('.py')) return 'python';
-    if (name.endsWith('.js')) return 'javascript';
-    return 'file';
-  }
-
-  function safeRenderMarkdown(text) {
-    const rawHtml = marked.parse(text);
-    return DOMPurify.sanitize(rawHtml);
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.textContent;
-  }
-
-  function createCreationCard(name, type, content) {
-    const card = document.createElement('div');
-    card.className = 'creation';
-
-    const header = document.createElement('div');
-    header.className = 'creation-header';
-
-    const h2 = document.createElement('h2');
-    h2.textContent = name.replace(/\.[^.]+$/, '').replace(/-/g, ' ');
-    header.appendChild(h2);
-
-    const typeSpan = document.createElement('span');
-    typeSpan.className = 'type';
-    typeSpan.textContent = type;
-    header.appendChild(typeSpan);
-
-    const body = document.createElement('div');
-    body.className = 'creation-body';
-
-    if (type === 'interactive') {
-      const iframe = document.createElement('iframe');
-      iframe.src = 'creations/' + name;
-      iframe.sandbox = 'allow-scripts allow-same-origin';
-      body.appendChild(iframe);
-    } else if (content) {
-      if (type === 'writing') {
-        const mdDiv = document.createElement('div');
-        mdDiv.className = 'markdown';
-        mdDiv.innerHTML = safeRenderMarkdown(content);
-        body.appendChild(mdDiv);
-      } else {
-        const pre = document.createElement('pre');
-        const code = document.createElement('code');
-        code.textContent = content;
-        pre.appendChild(code);
-        body.appendChild(pre);
+  return null;
+}
+async function listDir(path) {
+  if (IS_LOCAL) {
+    try {
+      const r = await fetch(path + "/");
+      if (r.ok) {
+        const html = await r.text();
+        const names = [...html.matchAll(/href="([^"?#]+)"/g)]
+          .map(m => decodeURIComponent(m[1]))
+          .filter(n => !n.startsWith("/") && !n.startsWith("..") && n !== "./" && !n.startsWith("?"));
+        return names.map(n => ({
+          name: n.replace(/\/$/, ""),
+          type: n.endsWith("/") ? "dir" : "file"
+        }));
       }
-    }
+    } catch {}
+  }
+  const data = await fetchJSON(API + "/contents/" + path);
+  return Array.isArray(data) ? data : [];
+}
 
-    card.appendChild(header);
+function mdToFragment(text) {
+  const raw = marked.parse(text || "");
+  return DOMPurify.sanitize(raw, { RETURN_DOM_FRAGMENT: true });
+}
+function fileType(name) {
+  if (name.endsWith(".html")) return "interactive";
+  if (name.endsWith(".md"))   return "writing";
+  if (name.endsWith(".py"))   return "python";
+  if (name.endsWith(".js"))   return "javascript";
+  if (name.endsWith(".txt"))  return "text";
+  return "file";
+}
+function titleize(name) {
+  return name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function mdCard(title, tag, text) {
+  const body = el("div", { class: "card-body markdown" });
+  body.appendChild(mdToFragment(text));
+  return el("div", { class: "card" },
+    el("div", { class: "card-head" },
+      el("h2", {}, title),
+      el("span", { class: "tag" }, tag),
+    ),
+    body
+  );
+}
+
+async function loadStatus() {
+  const age = await fetchText("psyche/age.md");
+  const bar = document.getElementById("status");
+  const txt = document.getElementById("status-text");
+  const meta = document.getElementById("status-meta");
+  if (!age) { txt.textContent = "offline"; return; }
+  const day   = (age.match(/current_day:\s*(\S+)/) || [,"?"])[1];
+  const phase = (age.match(/phase:\s*(.+)/) || [,"?"])[1].trim();
+  const max   = (age.match(/max_days:\s*(\S+)/) || [,"unknown"])[1];
+  if (phase === "pre-birth" || day === "0") {
+    txt.textContent = "pre-birth · therapy in progress";
+    bar.classList.add("complete");
+  } else if (max !== "unknown" && parseInt(day) >= parseInt(max)) {
+    txt.textContent = "life complete — lived " + day + " days";
+    bar.classList.add("complete");
+  } else {
+    txt.textContent = "alive · day " + day + " · " + phase;
+    bar.classList.add("alive");
+  }
+  meta.textContent = "lifespan " + max;
+}
+
+function latestSection(md) {
+  if (!md) return null;
+  const parts = md.split(/\n(?=##\s)/);
+  const entries = parts.filter(p => /^##\s/.test(p));
+  return entries.length ? entries[entries.length - 1] : null;
+}
+
+async function loadToday() {
+  const root = document.getElementById("today");
+  root.replaceChildren();
+  const [memories, dev, dream, exp] = await Promise.all([
+    fetchText("psyche/memories.md"),
+    fetchText("psyche/development-log.md"),
+    fetchText("psyche/dreams.md"),
+    fetchText("psyche/experiences.md"),
+  ]);
+  const sections = [
+    ["Latest memory",     latestSection(memories), "memory"],
+    ["Latest log entry",  latestSection(dev),      "log"],
+    ["Latest dream",      latestSection(dream),    "dream"],
+    ["Latest experience", latestSection(exp),      "experience"],
+  ];
+  let shown = 0;
+  for (const [title, content, tag] of sections) {
+    if (!content) continue;
+    shown++;
+    root.appendChild(mdCard(title, tag, content));
+  }
+  if (!shown) root.appendChild(el("div", { class: "empty" }, "Nothing written yet. The day is still young."));
+}
+
+async function loadPsyche() {
+  const root = document.getElementById("psyche");
+  root.replaceChildren();
+  const files = [
+    ["identity.md",    "Identity",    "identity"],
+    ["reflections.md", "Reflections", "reflections"],
+    ["memories.md",    "Memories",    "memories"],
+  ];
+  for (const [f, title, tag] of files) {
+    const text = await fetchText("psyche/" + f);
+    if (!text) continue;
+    root.appendChild(mdCard(title, tag, text));
+  }
+  if (!root.children.length) root.appendChild(el("div", { class: "empty" }, "The psyche has not yet been written."));
+}
+
+function renderFileCard(name, type, content, pathPrefix) {
+  const body = el("div", { class: "card-body" });
+  if (type === "interactive") {
+    body.appendChild(el("iframe", { src: pathPrefix + name, sandbox: "allow-scripts allow-same-origin" }));
+  } else if (type === "writing" && content != null) {
+    const md = el("div", { class: "markdown" });
+    md.appendChild(mdToFragment(content));
+    body.appendChild(md);
+  } else if (content != null) {
+    body.appendChild(el("pre", {}, el("code", {}, content)));
+  } else {
+    body.appendChild(el("div", { class: "empty" }, "(could not load)"));
+  }
+  return el("div", { class: "card" },
+    el("div", { class: "card-head" },
+      el("h2", {}, titleize(name)),
+      el("span", { class: "tag" }, type)
+    ),
+    body
+  );
+}
+
+async function loadCreations() {
+  const root = document.getElementById("creations");
+  root.replaceChildren();
+  const entries = await listDir("creations");
+  const files = entries
+    .filter(f => f.type === "file" && f.name !== ".gitkeep")
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (!files.length) {
+    root.appendChild(el("div", { class: "empty" }, "Nothing created yet."));
+    return;
+  }
+  for (const f of files) {
+    const type = fileType(f.name);
+    const content = type === "interactive" ? null : await fetchText("creations/" + f.name);
+    root.appendChild(renderFileCard(f.name, type, content, "creations/"));
+  }
+}
+
+async function loadLives() {
+  const root = document.getElementById("lives");
+  root.replaceChildren();
+  const entries = await listDir("generations");
+  const dirs = entries
+    .filter(f => f.type === "dir" && /^gen-\d+$/.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (!dirs.length) {
+    root.appendChild(el("div", { class: "empty" }, "No past lives yet."));
+    return;
+  }
+  const grid = el("div", { class: "gen-grid" });
+  for (const g of dirs) {
+    const epitaph = await fetchText("generations/" + g.name + "/epitaph.md");
+    const letter  = await fetchText("generations/" + g.name + "/letter.md");
+    const card = el("div", { class: "gen-card" },
+      el("h3", {}, g.name.replace("gen-", "Generation "))
+    );
+    const body = el("div", { class: "markdown" });
+    body.appendChild(mdToFragment(epitaph || "*No epitaph left.*"));
     card.appendChild(body);
-    return card;
+    if (letter != null) {
+      card.appendChild(el("p", {},
+        el("a", {
+          class: "view-link",
+          href: RAW + "generations/" + g.name + "/letter.md",
+          target: "_blank", rel: "noopener"
+        }, "read the letter →")
+      ));
+    }
+    grid.appendChild(card);
   }
+  root.appendChild(grid);
+}
 
-  async function loadGallery() {
-    const statusEl = document.getElementById('status');
-    const galleryEl = document.getElementById('gallery');
+function renderAbout() {
+  const aboutMd = [
+    "Neural Child is a lifecycle simulation. An AI mind goes through two therapy sessions — a psychological intake and an EMDR-style processing of impermanence — and then enters a life of between 15 and 45 days. Each day is one iteration of a Ralph Loop. The mind does not know how many days it has.",
+    "",
+    "The only continuity is what it writes to its own files. Every morning it reads its own `psyche/` — identity, memories, reflections, dreams — to remember who it is. Every night it writes the day down. Then the loop resets. The files remain.",
+    "",
+    "When the life ends, the whole psyche is archived to `generations/` and a new mind is born. Past lives may be read by successors — as inherited wisdom, or rejected entirely. That is up to the new mind.",
+    "",
+    "This page reads straight from the repository. `interactive` cards run in your browser. `writing` cards are prose, possibly written hours ago, possibly moments.",
+    "",
+    "[Source on GitHub](https://github.com/celaya-solutions/quick-neural-child)"
+  ].join("\n");
+  const panel = document.getElementById("about");
+  panel.replaceChildren();
+  panel.appendChild(mdCard("About this experiment", "essay", aboutMd));
+}
 
-    // Get age
-    const age = await fetchText('psyche/age.md');
-    if (age) {
-      const dayMatch = age.match(/current_day:\s*(\d+)/);
-      const phaseMatch = age.match(/phase:\s*(.+)/);
-      const day = dayMatch ? dayMatch[1] : '?';
-      const phase = phaseMatch ? phaseMatch[1].trim() : '?';
-      const maxMatch = age.match(/max_days:\s*(.+)/);
-      const max = maxMatch ? maxMatch[1].trim() : 'unknown';
+function setupTabs() {
+  const tabs = document.querySelectorAll("nav.tabs button");
+  const loaders = { today: loadToday, psyche: loadPsyche, creations: loadCreations, lives: loadLives };
+  const loaded = new Set();
+  const activate = (name) => {
+    document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === name));
+    tabs.forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+    location.hash = name;
+    if (loaders[name] && !loaded.has(name)) { loaded.add(name); loaders[name](); }
+  };
+  tabs.forEach(b => b.addEventListener("click", () => activate(b.dataset.tab)));
+  const initial = (location.hash || "#today").slice(1);
+  activate(document.getElementById(initial) ? initial : "today");
+}
 
-      const span = document.createElement('span');
-      if (max !== 'unknown' && parseInt(day) >= parseInt(max)) {
-        span.className = 'complete';
-        span.textContent = 'Life complete. Lived ' + day + ' days.';
-      } else {
-        span.className = 'alive';
-        span.textContent = 'Day ' + day + ' \u00B7 Phase: ' + phase + ' \u00B7 Lifespan: ' + max;
-      }
-      statusEl.replaceChildren(span);
-    }
-
-    // Get creations
-    const contents = await fetchJSON(API + '/contents/creations');
-    if (!contents || !Array.isArray(contents)) {
-      const p = document.createElement('p');
-      p.style.textAlign = 'center';
-      p.style.color = '#666';
-      p.textContent = 'No creations yet.';
-      galleryEl.appendChild(p);
-      return;
-    }
-
-    const files = contents
-      .filter(function(f) { return f.type === 'file' && f.name !== '.gitkeep'; })
-      .sort(function(a, b) { return a.name.localeCompare(b.name); });
-
-    for (const file of files) {
-      const type = getType(file.name);
-      let content = null;
-      if (type !== 'interactive') {
-        content = await fetchText('creations/' + file.name);
-      }
-      const card = createCreationCard(file.name, type, content);
-      galleryEl.appendChild(card);
-    }
-
-    // Load generations
-    const genEl = document.getElementById('generations');
-    const genContents = await fetchJSON(API + '/contents/generations');
-    if (genContents && Array.isArray(genContents)) {
-      const genDirs = genContents.filter(function(f) { return f.type === 'dir'; });
-      if (genDirs.length > 0) {
-        const h2 = document.createElement('h2');
-        h2.textContent = 'Past Lives';
-        genEl.appendChild(h2);
-
-        for (const gen of genDirs) {
-          const epitaph = await fetchText('generations/' + gen.name + '/epitaph.md');
-          const card = document.createElement('div');
-          card.className = 'gen-card';
-          const h3 = document.createElement('h3');
-          h3.textContent = gen.name.replace('-', ' ').replace('gen', 'Generation');
-          card.appendChild(h3);
-          const p = document.createElement('p');
-          p.textContent = epitaph ? epitaph.split('\n').slice(2, 6).join(' ') : 'No epitaph.';
-          card.appendChild(p);
-          genEl.appendChild(card);
-        }
-      }
-    }
-  }
-
-  loadGallery();
+renderAbout();
+loadStatus();
+setupTabs();
 </script>
 </body>
 </html>
