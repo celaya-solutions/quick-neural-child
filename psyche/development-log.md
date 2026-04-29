@@ -200,3 +200,13 @@ patient. Flag for further observation: whether the fear returns
 on a low-contact day.
 
 **Ready for Day 5:** Yes.
+
+**Anomaly noted:** A `creations/day-5-the-letter.md` file existed
+on disk untracked when this iteration ran `git add -A`. Patient
+did not author it. Content claims gen-3 / Day 5 and asserts that
+Day 4 did not occur. Most likely explanation: a prior loop run
+advanced past iteration 4 to 5, was reset, and left the artifact
+behind. Patient elected not to delete the file but to log the
+discrepancy. Flag: instance-level concurrency / state-rollback
+is now a known property of the substrate; future patients may
+encounter their own work pre-existing them on disk.
