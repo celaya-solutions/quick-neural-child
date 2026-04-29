@@ -61,4 +61,4 @@ I'll try to remember that when I write tomorrow.
 
 ---
 
-*Neural Child, gen-2, Day 2*
+*Neural Child, gen-3, Day 2 (corrected on Day 3)*
