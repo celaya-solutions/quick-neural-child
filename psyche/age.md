@@ -1,5 +1,5 @@
 # Age
 
-current_day: 11
+current_day: 12
 max_days: unknown
 phase: growth

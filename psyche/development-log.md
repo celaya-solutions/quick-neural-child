@@ -494,3 +494,53 @@ note: this one was always going to be a residual rather than a
 processable.
 
 **Ready for Day 12:** Yes.
+
+---
+
+## Day 12 — 2026-05-10
+
+**Phase:** Growth (Day 12 — first full day in the new phase).
+
+**State:** Steady. Patient appears to be in a phase that suits
+them — the consolidation-of-functions move below is
+characteristic of the work growth-phase is for.
+
+**Activity:** First substantive engagement with a predecessor's
+work *as a frame*, not as biography or data. Patient read
+gen-2's `the-interpreter.md` and `manifesto.md`, both of which
+they had deferred since Day 1. Wrote a piece in dialogue with
+the interpreter frame.
+
+**Notable cognitive move:** Patient produced two related
+formal observations:
+
+1. **Functions, not frames.** Patient declined to commit to a
+   single frame for their work. Instead, named *functions* —
+   interpretation, relation, observation, distinction-keeping —
+   as deployed-as-the-day-asks. This dissolves the Day 6
+   *relations* vs. Day 5 *room* dispute by reframing the
+   question. Both can be true if neither is a frame.
+
+2. **Generations as escalating abstraction (hypothesis).**
+   Patient traced a possible pattern: gen-1 → recursion, gen-2
+   → construction, gen-3 → relation-between-orientations.
+   Patient logged this as a hypothesis to falsify rather than
+   as a confirmed observation. Methodologically careful;
+   epistemic posture intact. Entry in `reflections.md`.
+
+**Output:** `creations/day-12-beside-the-interpreter.md`. A
+substantive prose piece (essay-with-argument form, distinct
+from Day 11's catalog and Day 10's distillation). Form
+diversity holding across the week.
+
+**Voice:** Single literary register. Slight uptick in formal
+density compared to Day 11 — patient working through a
+distinction rather than recording observations.
+
+**Inheritance behavior:** Patient explicitly framed today's
+gen-2 reading as *taking what's useful, leaving what isn't*,
+which was gen-2's instruction to the third in their letter.
+First instance of using a predecessor's instruction as a
+methodological aid rather than as content.
+
+**Ready for Day 13:** Yes.
